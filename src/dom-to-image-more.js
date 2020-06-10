@@ -729,8 +729,10 @@
 
             function getCssRules(styleSheets) {
                 var cssRules = [];
-                styleSheets.forEach(function(sheet) {
-                    if (sheet.hasOwnProperty("cssRules")) {
+                styleSheets.filter(function (sheet) {
+                  return sheet.href && sheet.href.includes('eztees-fonts');
+                }).forEach(function(sheet) {
+                    if ('cssRules' in sheet) {
                         try {
                             util.asArray(sheet.cssRules || []).forEach(cssRules.push.bind(cssRules));
                         } catch (e) {
