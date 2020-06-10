@@ -252,27 +252,10 @@
             function cloneStyle() {
                 copyStyle(window.getComputedStyle(original), clone.style);
 
-                function copyFont(source, target) {
-                    target.font = source.font;
-                    target.fontFamily = source.fontFamily;
-                    target.fontFeatureSettings = source.fontFeatureSettings;
-                    target.fontKerning = source.fontKerning;
-                    target.fontSize = source.fontSize;
-                    target.fontStretch = source.fontStretch;
-                    target.fontStyle = source.fontStyle;
-                    target.fontVariant = source.fontVariant;
-                    target.fontVariantCaps = source.fontVariantCaps;
-                    target.fontVariantEastAsian = source.fontVariantEastAsian;
-                    target.fontVariantLigatures = source.fontVariantLigatures;
-                    target.fontVariantNumeric = source.fontVariantNumeric;
-                    target.fontVariationSettings = source.fontVariationSettings;
-                    target.fontWeight = source.fontWeight;
-                }
-
                 function copyStyle(source, target) {
                     if (source.cssText) {
                         target.cssText = source.cssText;
-                        copyFont(source, target); // here we re-assign the font props.
+                        target.font = source.font; // here, we re-assign the font prop.
                     } else copyProperties(source, target);
 
                     function copyProperties(source, target) {
@@ -729,8 +712,10 @@
 
             function getCssRules(styleSheets) {
                 var cssRules = [];
-                styleSheets.forEach(function(sheet) {
-                    if (sheet.hasOwnProperty("cssRules")) {
+                styleSheets.filter(function (sheet) {
+                  return sheet.href && sheet.href.includes('eztees-fonts');
+                }).forEach(function(sheet) {
+                    if ('cssRules' in sheet) {
                         try {
                             util.asArray(sheet.cssRules || []).forEach(cssRules.push.bind(cssRules));
                         } catch (e) {
@@ -765,7 +750,8 @@
 
         function newImage(element) {
             return {
-                inline: inline
+                inline: inline,
+                inlinehref: inlinehref
             };
 
             function inline(get) {
@@ -785,6 +771,30 @@
                         });
                     });
             }
+
+            function inlinehref(get) {
+                var href = element.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+
+                if (util.isDataUrl(href)) return Promise.resolve();
+
+                if (!href) {
+                   return Promise.resolve();
+                }
+
+                return Promise.resolve(href)
+                    .then(get || util.getAndEncode)
+                    .then(function(data) {
+                        return util.dataAsUrl(data, util.mimeType(href));
+                    })
+                    .then(function(dataUrl) {
+                        return new Promise(function(resolve, reject) {
+                            element.onload = resolve;
+                            // for any image with invalid src(such as <img src />), just ignore it
+                            element.onerror = resolve;
+                            element.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl);
+                        });
+                    });
+            }
         }
 
         function inlineAll(node) {
@@ -792,14 +802,17 @@
 
             return inlineBackground(node)
                 .then(function() {
-                    if (node instanceof HTMLImageElement)
+                    if (node instanceof HTMLImageElement) {
                         return newImage(node).inline();
-                    else
+                    } else if (node.tagName === 'image') {
+                        return newImage(node).inlinehref();
+                    } else {
                         return Promise.all(
                             util.asArray(node.childNodes).map(function(child) {
                                 return inlineAll(child);
                             })
                         );
+                    }
                 });
 
             function inlineBackground(node) {
