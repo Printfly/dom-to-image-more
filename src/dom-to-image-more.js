@@ -344,7 +344,7 @@
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
                 if (!(clone instanceof SVGRectElement)) return;
-                ['width', 'height'].forEach(function(attribute) {
+                ['width', 'height', 'mask'].forEach(function(attribute) {
                     var value = clone.getAttribute(attribute);
                     if (!value) return;
 
